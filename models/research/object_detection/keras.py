@@ -15,7 +15,7 @@ from tensorflow.compat.v1.keras import backend as K
 
 #데이터 폴더의 이미지를 LOADING 한다.
 data_folder = "./test_image/"
-MINIMUM_IMAGE_NUM = 501
+MINIMUM_IMAGE_NUM = 1200
 MININUM_TEST_NUM = 10
 
 #훈련중인 모델을 저장할 경로와 파일 이름
@@ -35,11 +35,11 @@ final_result_count = []
 #우리가 분류해야될 물품의 목록을 모아놓는다.
 class_names = [
     'blackbean', 'herbsalt', 'homerun', 'lion', 'narangd', 'rice', 'sixopening', 'skippy', 'BlackCap', 'CanBeer', 'doritos',
-    'Glasses', 'lighter', 'mountaindew', 'pepsi', 'Spoon',  'tobacco', 'WhiteCap'
+    'Glasses', 'lighter', 'mountaindew', 'pepsi', 'Spoon',  'tobacco', 'WhiteCap', 'note'
 ]
 
 class_prices = [
-    1000, 800, 1500, 6000, 1000, 1500, 800, 800, 25000, 2000, 1500, 50000, 4000, 1000, 1000, 1000, 1500, 30000
+    1000, 800, 1500, 6000, 1000, 1500, 800, 800, 25000, 2000, 1500, 50000, 4000, 1000, 1000, 1000, 1500, 30000, 2000
 ]
 
 test_names = [
