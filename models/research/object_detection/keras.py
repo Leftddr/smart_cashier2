@@ -16,6 +16,7 @@ from tensorflow.compat.v1.keras import backend as K
 #데이터 폴더의 이미지를 LOADING 한다.
 data_folder = "./test_image/"
 MINIMUM_IMAGE_NUM = 501
+MININUM_TEST_NUM = 10
 
 #훈련중인 모델을 저장할 경로와 파일 이름
 checkpoint_path = 'model'
@@ -26,20 +27,30 @@ train_labels = []
 test_images = []
 test_labels = []
 
+result_labels = []
+result_labels_set = []
+final_result_labels = []
+final_result_count = []
+
 #우리가 분류해야될 물품의 목록을 모아놓는다.
 class_names = [
     'blackbean', 'herbsalt', 'homerun', 'lion', 'narangd', 'rice', 'sixopening', 'skippy', 'BlackCap', 'CanBeer', 'doritos',
     'Glasses', 'lighter', 'mountaindew', 'pepsi', 'Spoon',  'tobacco', 'WhiteCap'
 ]
 
+class_prices = [
+    1000, 800, 1500, 6000, 1000, 1500, 800, 800, 25000, 2000, 1500, 50000, 4000, 1000, 1000, 1000, 1500, 30000
+]
+
 test_names = [
     'testsetA',
 ]
+
 dict_class_names = None
 
-batch_size = 1000
+batch_size = 6000
 num_classes = len(class_names)
-epochs = 35
+epochs = 1
 model = []
 #최종 accuracy가 가장 높은 model을 저장해 놓는다.
 final_model = None
@@ -121,9 +132,11 @@ def data_img_size():
 
 def test_data_img(width, height):
     global test_images
+    global MININUM_TEST_NUM
 
     for class_folder in test_names:
-        for image_seq in range(2):
+        #이제는 최소의 사진 개수를 위해 FOR문을 돌린다.
+        for image_seq in range(MININUM_TEST_NUM):
             filename = class_folder + '/' + class_folder + str(image_seq) + '.jpg' 
             if os.path.exists(filename) == False:
                 continue
@@ -133,6 +146,7 @@ def test_data_img(width, height):
             test_images.append(img)
     
     test_images = np.array(test_images)
+    print(test_images.shape)
 
 #train data를 넣는다.
 def train_data_img(width, height):
@@ -216,14 +230,87 @@ def train_model(train_data_set, train_data_label):
 def output_result(test_images):
     global final_model
     global class_names
+    global result_labels
+    global result_labels_set
+ 
+    for img in test_images:
+        test_img = []
+        test_img.append(img) 
+        #여러개의 품목이 있을 수 있으므로 DICTIONARY 형태로 저장해 놓는다.
+        #과자 : 1개, 음료수 : 2개.... 이런식으로 저장한다. (한 test 이미지 당)
+        dict_for_result = {}
+        predictions = np.zeros(1 * num_classes).reshape(1, num_classes)
 
-    predictions = np.zeros(1 * num_classes).reshape(1, num_classes)
+        for idx, md in enumerate(final_model):
+            p = md.predictions(test_img)
+            predictions += p
 
-    for idx, md in enumerate(final_model):
-        p = md.predictions(test_images)
-        predictions += p
+        index = np.argmax(predictions)
+        #물건 이름을 우선 print해서 출력한다.
+        thing_name = class_names[index]
+        print(thing_name)
+        
+        #우선 이미 품목이 있는지 검사한다.
+        if dict_for_result.get(index):
+            dict_for_result[index] += 1
+        else:
+            dict_for_result[index] = 1
+        
+        result_labels_set.append(index)
+    
+    #최종 label에 test당 dictionary를 붙여넣는다.
+    result_labels.append(dict_for_result)
+    #중복되는 물품을 없애고, 투표를 하기위해 중복물품을 없앤다.
+    result_labels_set = set(result_labels_set)
+    result_labels_set = list(result_labels_set)
 
-    print(class_names[tf.compat.v1.argmax(predictions, 1)[0]])
+#가격을 계산하기 위한 전제함수 이다.
+def prev_calculate_price():
+    global result_labels
+    global result_labels_set
+    global final_result_labels
+    global final_result_count
+
+    quorm = int(MININUM_TEST_NUM / 2)
+
+    #item을 하나씩 꺼내고 test마다 돌면서 투표수를 센다
+    for item in result_labels_set:
+        vote = 0
+        #중복 물품이 있을 경우, 물품의 개수를 세기 위해 존재한다. 2개 : 1, 1개 : 2..... 이런식으로
+        dict_for_item_count = {}
+        for test in result_labels:
+            if test.get(item):
+                vote += 1
+                #개수를 저장해 놓는다.
+                if dict_for_item_count.get(test[item]):
+                    dict_for_item_count[test[item]] += 1
+                else:
+                    dict_for_item_count[test[item]] = 0
+        
+        if quorm >= vote:
+            final_result_labels.append(item)
+            sort_item_count = sorted(dict_for_item_count.items(), reverse = True, key = lambda item : item[1])
+            for key, _ in sort_item_count:
+                final_result_count.append(key)
+                break
+    
+    #후의 reuse를 위해 초기화 해놓는다.
+    result_labels = []
+    result_labels_set = []
+
+def calculate_price():
+    global final_result_labels
+    global final_result_count
+
+    sum = 0
+    for index, count in zip(final_result_labels, final_result_count):
+        sum += (class_prices[index] * count)
+    
+    print('최종 가격 : ' + str(sum))
+
+    #후의 reuse를 위해 초기화 해놓는다.
+    final_result_count = []
+    final_result_labels = []
 
 def validate(valid_data, valid_label):
     #accuracy를 측정하여 정확도를 비교한다.
@@ -340,32 +427,7 @@ if __name__ == "__main__":
     #global global_accuracy
     load_data()
     output_result(test_images)
-'''
-for i in range(0, total_image_num):
-    batch_model = Model(str(i))
-    split_train_image = train_images[i * batch_size : (i + 1) * batch_size, :]
-    split_train_labels = train_labels[i * batch_size : (i + 1) * batch_size, :]
-    batch_model.make_model(split_train_image)
-    batch_model.model_compile()
-    batch_model.model_fit(split_train_image, split_train_labels)
-    model.append(batch_model)
 
-test_size = len(test_images)
-predictions = np.zeros(test_size * num_classes).reshape(test_size, num_classes)
-
-for i in range(0, total_image_num):
-    p = model[i].predictions(test_images)
-    predictions += p
-
-#backend의 k에서 훈련시켜온 session을 tf에 입력시킨다
-#tf를 통해 앙상블 시킨 모든 모델에 대한 정확도를 측정한다.
-with tf.compat.v1.Session(graph = K.get_session().graph) as sess:
-    ensemble_correct_prediction = tf.compat.v1.equal(
-        tf.compat.v1.argmax(predictions, 1), tf.compat.v1.argmax(test_labels, 1))
-    ensemble_accuracy = tf.compat.v1.reduce_mean(
-        tf.compat.v1.cast(ensemble_correct_prediction, tf.compat.v1.float32))
-    print('Ensemble accuracy : ', sess.run(ensemble_accuracy))
-'''
 
 
 
