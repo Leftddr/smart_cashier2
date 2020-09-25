@@ -48,9 +48,9 @@ test_names = [
 
 dict_class_names = None
 
-batch_size = 6000
+batch_size = 1000
 num_classes = len(class_names)
-epochs = 1
+epochs = 20
 model = []
 #최종 accuracy가 가장 높은 model을 저장해 놓는다.
 final_model = None
@@ -81,7 +81,8 @@ def load_data():
     data_shuffle()
 
     #범주 안에 들어가게 하기 위해
-    train_imags = train_images / 255
+    train_images = train_images / 255
+    test_images = test_images / 255
     
     #cifar_mnist = datasets.cifar10
     #(train_images, train_labels), (test_images, test_labels) = cifar_mnist.load_data()
@@ -235,7 +236,8 @@ def output_result(test_images):
  
     for img in test_images:
         test_img = []
-        test_img.append(img) 
+        test_img.append(img)
+        test_img = np.array(test_img) 
         #여러개의 품목이 있을 수 있으므로 DICTIONARY 형태로 저장해 놓는다.
         #과자 : 1개, 음료수 : 2개.... 이런식으로 저장한다. (한 test 이미지 당)
         dict_for_result = {}
